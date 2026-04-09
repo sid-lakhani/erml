@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Trained model weights — committed to repo so the package is self-contained.
+# To regenerate: python -m erml.train
+# erml/assets/erml_v1.h5   ← intentionally tracked
+
+# Trained model weights (alternate formats, not used)
+erml/assets/*.keras
+
+# Dataset (large, download separately)
+dataset/
+
+# Training output
+models/
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv / pip
+uv.lock
+pip-wheel-metadata/
