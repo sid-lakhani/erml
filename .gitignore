@@ -15,11 +15,9 @@ build/
 venv/
 env/
 
-# Trained model weights — committed to repo so the package is self-contained.
-# To regenerate: python -m erml.train
-# erml/assets/erml_v1.h5   ← intentionally tracked
-
-# Trained model weights (alternate formats, not used)
+# Trained model weights (downloaded automatically at runtime)
+erml/assets/*.h5
+erml/assets/*.onnx
 erml/assets/*.keras
 
 # Dataset (large, download separately)
@@ -46,3 +44,9 @@ Thumbs.db
 # uv / pip
 uv.lock
 pip-wheel-metadata/
+
+# MkDocs build output
+site/
+
+# Test outputs
+examples/outputs/

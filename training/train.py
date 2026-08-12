@@ -1,14 +1,18 @@
 """Training script for the ERML CNN model.
 
-Not part of the public API. Run directly:
-    python -m erml.train
+Not part of the installable erml package. Run directly from the repo root:
+
+    python training/train.py
 
 Requires the FER-2013 dataset under dataset/train/ and dataset/test/
-organised by emotion subfolder.
+organised by emotion subfolder, plus the training dependencies:
+
+    uv pip install -r requirements-train.txt
 """
 
 import logging
 import os
+import sys
 
 # Suppress TensorFlow C++ / CUDA / absl log spam before any TF import.
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -16,14 +20,28 @@ os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
 
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
 
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+# Guard TF imports with a clear error if not installed.
+try:
+    from tensorflow import keras
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+except ImportError as exc:
+    raise ImportError(
+        "Training requires TensorFlow. Install it with:\n"
+        "    uv pip install -r requirements-train.txt\n"
+        "or:\n"
+        "    pip install erml[train]"
+    ) from exc
 
-from erml.model import EMOTION_LABELS, build_model
+# Make erml importable when running as a standalone script.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from erml.constants import EMOTION_LABELS
+from training.model import build_model
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,10 +50,9 @@ logger = logging.getLogger(__name__)
 # Paths
 # ---------------------------------------------------------------------------
 
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _DATASET_TRAIN = os.path.join(_REPO_ROOT, "dataset", "train")
 _DATASET_TEST = os.path.join(_REPO_ROOT, "dataset", "test")
-_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+_ASSETS_DIR = os.path.join(_REPO_ROOT, "erml", "assets")
 _MODEL_OUT = os.path.join(_ASSETS_DIR, "erml_v1.h5")
 
 # ---------------------------------------------------------------------------

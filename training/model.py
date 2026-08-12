@@ -1,14 +1,31 @@
-"""CNN architecture definition for ERML emotion recognition.
+"""Keras CNN architecture for ERML training.
 
-This module only defines the model architecture. No training logic here.
+This module is only required during training. It is NOT part of the
+installable erml package — inference uses ONNX Runtime instead.
+
+Requires: pip install erml[train]  (or: uv pip install -r requirements-train.txt)
 """
 
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+try:
+    from tensorflow import keras
+    from tensorflow.keras import layers  # type: ignore[import-untyped]
+except ImportError as exc:
+    raise ImportError(
+        "Training requires TensorFlow. Install it with:\n"
+        "    uv pip install -r requirements-train.txt\n"
+        "or:\n"
+        "    pip install erml[train]"
+    ) from exc
 
+import sys
+import os
 
-EMOTION_LABELS = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
+# Make erml importable when running as a standalone script.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from erml.constants import EMOTION_LABELS  # noqa: E402
 
 
 def build_model() -> keras.Model:
@@ -25,8 +42,10 @@ def build_model() -> keras.Model:
     """
     model = keras.Sequential(
         [
+            # Explicit input layer — preferred over input_shape= in Conv2D (Keras 3+).
+            keras.Input(shape=(48, 48, 1)),
             # Block 1
-            layers.Conv2D(32, (3, 3), activation="relu", input_shape=(48, 48, 1)),
+            layers.Conv2D(32, (3, 3), activation="relu"),
             layers.BatchNormalization(),
             layers.MaxPooling2D((2, 2)),
             # Block 2

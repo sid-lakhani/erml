@@ -1,0 +1,4 @@
+# Dependencies required to run training/train.py
+# Install via: uv pip install -r requirements-train.txt
+tensorflow>=2.10
+scipy>=1.10

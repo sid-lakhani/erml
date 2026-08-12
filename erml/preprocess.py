@@ -44,9 +44,7 @@ def preprocess_face(face_roi: np.ndarray) -> np.ndarray:
                 f"Unsupported number of channels: {channels}. Expected 1, 3, or 4."
             )
     else:
-        raise ValueError(
-            f"face_roi must be 2D or 3D array, got ndim={face_roi.ndim}"
-        )
+        raise ValueError(f"face_roi must be 2D or 3D array, got ndim={face_roi.ndim}")
 
     resized = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
     normalized = resized.astype(np.float32) / 255.0

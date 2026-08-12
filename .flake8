@@ -1,0 +1,17 @@
+[flake8]
+max-line-length = 88
+extend-ignore =
+    # E203: whitespace before ':' — conflicts with Black slice formatting
+    E203,
+    # W503: line break before binary operator — conflicts with Black
+    W503,
+    # E402: module level import not at top — intentional for TF log suppression
+    E402,
+# F821: undefined name — false positive for string TYPE_CHECKING annotations
+    F821,
+exclude =
+    .venv,
+    .git,
+    __pycache__,
+    *.egg-info,
+    erml.egg-info,

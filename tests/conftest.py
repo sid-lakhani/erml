@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
-
 SAMPLE_FACES_DIR = os.path.join(os.path.dirname(__file__), "sample_faces")
 
 
@@ -29,33 +28,33 @@ def bgr_face_array() -> np.ndarray:
 
 @pytest.fixture()
 def mock_detector():
-    """EmotionDetector with model loading and face detection mocked out.
+    """EmotionDetector with ONNX session and YuNet detection fully mocked.
 
-    The model's predict() returns a fixed probability distribution where
+    The ONNX session returns a fixed probability distribution where
     'happy' (index 3) has the highest score.
     """
-    import erml.detector as det_module
     from erml.detector import EmotionDetector
-    from erml.model import EMOTION_LABELS
 
-    # Build a softmax-like prediction: happy = 0.9, rest share 0.1
-    predictions = np.array([0.02, 0.01, 0.02, 0.90, 0.02, 0.02, 0.01], dtype=np.float32)
+    # softmax-like prediction: happy = 0.9, rest share 0.1
+    predictions = np.array(
+        [[0.02, 0.01, 0.02, 0.90, 0.02, 0.02, 0.01]], dtype=np.float32
+    )
+    mock_session = MagicMock()
+    mock_session.run.return_value = [predictions]
+    mock_session.get_inputs.return_value = [MagicMock(name="input")]
 
-    mock_model = MagicMock()
-    mock_model.predict.return_value = np.array([predictions])
-
-    mock_cascade = MagicMock()
-    # detectMultiScale returns one face bounding box
-    mock_cascade.detectMultiScale.return_value = np.array([[10, 10, 60, 60]])
-    mock_cascade.empty.return_value = False
+    # YuNet: detect() returns (retval, faces) where faces is (N, 15)
+    faces_15col = np.array([[10, 10, 60, 60, *([0.0] * 10), 0.95]], dtype=np.float32)
+    mock_yunet = MagicMock()
+    mock_yunet.detect.return_value = (1, faces_15col)
 
     with (
-        patch.object(det_module, "_MODEL_PATH", "/fake/model.h5"),
-        patch("os.path.isfile", return_value=True),
-        patch("erml.detector.build_model", return_value=mock_model),
-        patch("erml.detector._load_cascade", return_value=mock_cascade),
+        patch("erml.detector._resolve_model", return_value="/fake/model.onnx"),
+        patch("erml.detector.ort.SessionOptions", return_value=MagicMock()),
+        patch("erml.detector.ort.InferenceSession", return_value=mock_session),
+        patch("erml.detector.cv2.FaceDetectorYN.create", return_value=mock_yunet),
     ):
         detector = EmotionDetector()
-        detector._model = mock_model
-        detector._cascade = mock_cascade
-        yield detector
+
+    detector._input_name = "input"
+    yield detector

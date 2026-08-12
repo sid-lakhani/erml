@@ -1,61 +1,57 @@
 """Public API for ERML emotion detection.
 
 The EmotionDetector class is the sole public interface of the erml package.
+Uses ONNX Runtime for inference (no TensorFlow required at runtime) and
+OpenCV's YuNet face detector for significantly more accurate face detection
+than the legacy Haar cascade approach.
 """
+
+from __future__ import annotations
 
 import logging
 import os
-
-# Suppress TensorFlow C++ / CUDA / absl log spam before any TF import.
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
-os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
-
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
+from pathlib import Path
+from typing import TYPE_CHECKING, List, Union
 
-from typing import Dict, List, Union
+# Suppress OpenCV / ONNX verbosity.
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import cv2
 import numpy as np
+import onnxruntime as ort
 
-from erml.model import EMOTION_LABELS, build_model
+from erml.constants import EMOTION_LABELS
+from erml.download import ensure_model
 from erml.preprocess import preprocess_face
+from erml.schemas import BoundingBox, FacePrediction
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
 
-_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
-_MODEL_PATH = os.path.join(_ASSETS_DIR, "erml_v1.h5")
-_CASCADE_PATH = os.path.join(_ASSETS_DIR, "haarcascade_frontalface_default.xml")
+_ASSETS_DIR = Path(__file__).parent / "assets"
+_MODEL_FILENAME = "erml_v1.onnx"
+_YUNET_FILENAME = "face_detection_yunet_2023mar.onnx"
 
 
-def _load_cascade() -> cv2.CascadeClassifier:
-    """Load the Haar cascade classifier for face detection.
+def _resolve_model(filename: str) -> Path:
+    """Return path to a model file, downloading it on first run if absent.
 
-    Falls back to OpenCV's bundled cascade if the assets copy is absent.
+    Checks the package assets dir first, then ~/.cache/erml/.
+
+    Args:
+        filename: Model filename registered in :data:`~erml.download.KNOWN_MODELS`.
 
     Returns:
-        Loaded CascadeClassifier instance.
-
-    Raises:
-        RuntimeError: If no cascade file can be found.
+        Absolute path to the verified local file.
     """
-    if os.path.isfile(_CASCADE_PATH):
-        path = _CASCADE_PATH
-    else:
-        bundled = os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")
-        if os.path.isfile(bundled):
-            logger.debug("Using bundled OpenCV cascade: %s", bundled)
-            path = bundled
-        else:
-            raise RuntimeError(
-                "Haar cascade not found. Expected at "
-                f"{_CASCADE_PATH} or bundled with OpenCV."
-            )
-    cascade = cv2.CascadeClassifier(path)
-    if cascade.empty():
-        raise RuntimeError(f"Failed to load cascade classifier from: {path}")
-    return cascade
+    local = _ASSETS_DIR / filename
+    if local.is_file():
+        return local
+    return ensure_model(filename, assets_dir=_ASSETS_DIR)
 
 
 class EmotionDetector:
@@ -64,36 +60,58 @@ class EmotionDetector:
     Accepts a frame as a numpy array, file path, or PIL Image and returns
     structured emotion data for every detected face.
 
+    Uses **ONNX Runtime** for inference (no TensorFlow dependency) and
+    **YuNet** (OpenCV's built-in deep face detector) for significantly more
+    accurate face localisation than the legacy Haar cascade approach.
+
     Example::
 
         detector = EmotionDetector()
         results = detector.analyze("photo.jpg")
+
+        # Access fields directly (IDE autocomplete supported)
         for face in results:
-            print(face["emotion"], face["confidence"])
+            print(face.emotion, face.confidence)
+
+        # Export to plain dicts (e.g. for JSON serialisation)
+        raw = [r.model_dump() for r in results]
     """
 
     def __init__(self) -> None:
-        """Initialise the detector by loading the model and face cascade.
+        """Initialise the detector by loading both ONNX models.
 
-        The trained weights must exist at erml/assets/erml_v1.h5. If the
-        file is absent the detector raises FileNotFoundError immediately so
-        the error is surfaced at construction time rather than inference time.
+        On first run, if either model file is not found locally, it is
+        downloaded automatically from GitHub Releases, verified via SHA-256,
+        and cached in ``~/.cache/erml/`` for all future runs.
 
         Raises:
-            FileNotFoundError: If the model weights file does not exist.
-            RuntimeError: If the face cascade cannot be loaded.
+            RuntimeError: If a download fails or a checksum does not match.
         """
-        if not os.path.isfile(_MODEL_PATH):
-            raise FileNotFoundError(
-                f"Model weights not found at: {_MODEL_PATH}\n"
-                "Run erml/train.py to train and save the model, or download "
-                "a pre-trained erml_v1.h5 into erml/assets/."
-            )
+        # Resolve / download emotion model and YuNet face detector.
+        model_path = _resolve_model(_MODEL_FILENAME)
+        yunet_path = _resolve_model(_YUNET_FILENAME)
 
-        logger.info("Loading model from %s", _MODEL_PATH)
-        self._model = build_model()
-        self._model.load_weights(_MODEL_PATH)
-        self._cascade = _load_cascade()
+        logger.info("Loading ONNX inference session from %s", model_path)
+        sess_opts = ort.SessionOptions()
+        sess_opts.log_severity_level = 3  # suppress ONNX Runtime noise
+        sess_opts.intra_op_num_threads = 1  # prevent thread thrashing in concurrent web servers
+        self._session = ort.InferenceSession(
+            str(model_path), 
+            sess_options=sess_opts,
+            providers=["CPUExecutionProvider"],
+        )
+        self._input_name: str = self._session.get_inputs()[0].name
+
+        logger.info("Loading YuNet face detector from %s", yunet_path)
+        # Placeholder size — resized per-frame in _detect_faces.
+        self._yunet = cv2.FaceDetectorYN.create(
+            model=str(yunet_path),
+            config="",
+            input_size=(640, 480),
+            score_threshold=0.6,
+            nms_threshold=0.3,
+            top_k=5000,
+        )
         logger.info("EmotionDetector ready.")
 
     # ------------------------------------------------------------------
@@ -101,8 +119,9 @@ class EmotionDetector:
     # ------------------------------------------------------------------
 
     def analyze(
-        self, frame: Union[np.ndarray, str, "PIL.Image.Image"]
-    ) -> List[Dict]:
+        self,
+        frame: Union[np.ndarray, str, PILImage],
+    ) -> List[FacePrediction]:
         """Detect faces in a frame and return per-face emotion scores.
 
         Args:
@@ -112,11 +131,14 @@ class EmotionDetector:
                 - PIL.Image object
 
         Returns:
-            List of dicts, one per detected face, each containing:
-                - ``emotion`` (str): Top predicted emotion label.
-                - ``confidence`` (float): Confidence score in [0, 1].
-                - ``all`` (dict): Scores for all 7 emotion labels.
-                - ``bbox`` (dict): Bounding box with keys x, y, w, h.
+            List of :class:`~erml.schemas.FacePrediction` objects, one per
+            detected face. Each object exposes ``.emotion``, ``.confidence``,
+            ``.all``, and ``.bbox`` as attributes with IDE autocomplete.
+
+            To convert to a plain dictionary::
+
+                raw_dicts = [r.model_dump() for r in results]
+
             Returns an empty list if no face is detected.
 
         Raises:
@@ -131,25 +153,25 @@ class EmotionDetector:
         if len(faces) == 0:
             return []
 
-        results = []
+        results: List[FacePrediction] = []
         for x, y, w, h in faces:
             roi = bgr[y : y + h, x : x + w]
             preprocessed = preprocess_face(roi)
-            predictions = self._model.predict(preprocessed, verbose=0)[0]
+            outputs = self._session.run(None, {self._input_name: preprocessed})
+            predictions = outputs[0][0]
 
             top_idx = int(np.argmax(predictions))
             all_scores = {
-                label: float(predictions[i])
-                for i, label in enumerate(EMOTION_LABELS)
+                label: float(predictions[i]) for i, label in enumerate(EMOTION_LABELS)
             }
 
             results.append(
-                {
-                    "emotion": EMOTION_LABELS[top_idx],
-                    "confidence": float(predictions[top_idx]),
-                    "all": all_scores,
-                    "bbox": {"x": int(x), "y": int(y), "w": int(w), "h": int(h)},
-                }
+                FacePrediction(
+                    emotion=EMOTION_LABELS[top_idx],
+                    confidence=float(predictions[top_idx]),
+                    all=all_scores,
+                    bbox=BoundingBox(x=int(x), y=int(y), w=int(w), h=int(h)),
+                )
             )
 
         return results
@@ -158,7 +180,10 @@ class EmotionDetector:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _to_bgr(self, frame: Union[np.ndarray, str, "PIL.Image.Image"]) -> np.ndarray:
+    def _to_bgr(
+        self,
+        frame: Union[np.ndarray, str, PILImage],
+    ) -> np.ndarray:
         """Convert any supported input type to a BGR numpy array.
 
         Args:
@@ -182,11 +207,11 @@ class EmotionDetector:
                 raise ValueError(f"Could not read image file: {frame}")
             return img
 
-        # PIL.Image — import lazily to avoid hard dependency at module level
+        # PIL.Image — import lazily to avoid hard dependency at module level.
         try:
-            from PIL import Image as PILImage
+            from PIL import Image as _PILImage
 
-            if isinstance(frame, PILImage.Image):
+            if isinstance(frame, _PILImage.Image):
                 img_rgb = np.array(frame.convert("RGB"))
                 return cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
         except ImportError:
@@ -198,22 +223,35 @@ class EmotionDetector:
         )
 
     def _detect_faces(self, bgr: np.ndarray) -> np.ndarray:
-        """Run Haar cascade face detection on a BGR frame.
+        """Run YuNet face detection on a BGR frame.
+
+        YuNet is a deep-learning face detector built into OpenCV (>= 4.8)
+        that handles rotation, occlusion, and varied lighting far better
+        than the legacy Haar cascade approach.
 
         Args:
             bgr: BGR numpy array.
 
         Returns:
             Array of shape (N, 4) with columns [x, y, w, h] for each
-            detected face. Empty array if none are found.
+            detected face, clipped to the image boundaries. Empty array
+            if none are found.
         """
-        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        faces = self._cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(30, 30),
-        )
-        if not isinstance(faces, np.ndarray):
+        h, w = bgr.shape[:2]
+        # YuNet requires input_size to match the frame dimensions.
+        self._yunet.setInputSize((w, h))
+
+        _, faces = self._yunet.detect(bgr)
+        if faces is None or len(faces) == 0:
             return np.empty((0, 4), dtype=np.int32)
-        return faces
+
+        # YuNet returns [x, y, w, h, *landmarks, score] — take first 4 cols.
+        boxes = faces[:, :4].astype(np.int32)
+
+        # Clip to image bounds to avoid out-of-bounds ROI slices.
+        boxes[:, 0] = np.clip(boxes[:, 0], 0, w - 1)
+        boxes[:, 1] = np.clip(boxes[:, 1], 0, h - 1)
+        boxes[:, 2] = np.clip(boxes[:, 2], 1, w - boxes[:, 0])
+        boxes[:, 3] = np.clip(boxes[:, 3], 1, h - boxes[:, 1])
+
+        return boxes
