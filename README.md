@@ -190,13 +190,46 @@ erml/
 └── pyproject.toml
 ```
 
+## Real-world Applications
+
+ERML is designed as a foundational **computer-vision perception SDK** for developers to plug into broader AI systems and tools.
+
+| Application | Value |
+| --- | --- |
+| 🤖 **AI Agents** | Multimodal agents understanding facial signals |
+| 🎮 **Games** | NPC/player emotion → adaptive gameplay |
+| 🧑‍💻 **Video Calls** | Engagement, attention, and reaction signals |
+| 🧪 **HCI Research** | Studying human-computer interaction |
+| 🏥 **Research** | Controlled affective-computing experiments |
+| 🎥 **Content Creation**| Automatic reaction/emotion metadata |
+| 🛍️ **UX Research** | Aggregate reactions during usability testing |
+| 🧠 **Robotics** | Robot perception of human affect |
+| 🖥️ **Accessibility** | Alternative interaction signals |
+
+*Note: Facial expression ≠ actual emotional state. ERML detects facial expressions to provide a structured signal for your downstream application.*
+
 ## Versioning
 
 | Version | Status | Notes |
 |---------|--------|-------|
-| v0.1.0 | current | FER-2013, basic CNN, ~52% val accuracy |
-| v0.2.0 | planned | Improved architecture, confidence calibration |
-| v1.0.0 | planned | Stable public API, full docs |
+| v0.1.0 | legacy | FER-2013, basic CNN, ~52% val accuracy |
+| v1.0.1 | current | Stable public API, ONNX runtime, PyPI published |
+
+## Roadmap
+
+ERML is evolving from an emotion classifier into a comprehensive **human visual perception SDK**. 
+
+- **Phase 1 (Current):** Stable facial expression recognition SDK with local ONNX inference.
+- **Phase 2 (Planned):** Expand perception to include face landmarks, head pose, and gaze tracking.
+- **Phase 3 (Planned):** Expose structured multi-modal signals natively designed for AI agent consumption.
+
+## Contributing
+
+ERML is an open-source project and we actively welcome contributions! Whether it's fixing a bug, adding a new feature (like webcam streaming support), or improving documentation, your help is appreciated.
+
+1. Check the [Issues](https://github.com/sid-lakhani/erml/issues) tab for `good first issue` or `help wanted` tags.
+2. Read our [Contributing Guide](CONTRIBUTING.md) for setup instructions.
+3. Open a Pull Request!
 
 ## License
 
