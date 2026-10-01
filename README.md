@@ -1,6 +1,8 @@
-# ERML — Emotion Recognition ML
+<div align="center">
+  <img src="docs/assets/erml-banner.png" alt="ERML Banner" width="100%" />
+</div>
 
-A pip-installable Python SDK for facial emotion recognition. Drop it into your own project, pass it a frame, get back structured emotion data — no camera or display logic included.
+##### A pip-installable Python SDK for facial emotion recognition. Drop it into your own project, pass it a frame, get back structured emotion data — no camera or display logic included.
 
 ```python
 from erml import EmotionDetector, FacePrediction, format_results

@@ -10,6 +10,8 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  logo: assets/erml-logo.png
+  favicon: assets/erml-icon.png
   palette:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
