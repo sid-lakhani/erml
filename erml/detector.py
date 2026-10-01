@@ -94,9 +94,9 @@ class EmotionDetector:
         logger.info("Loading ONNX inference session from %s", model_path)
         sess_opts = ort.SessionOptions()
         sess_opts.log_severity_level = 3  # suppress ONNX Runtime noise
-        sess_opts.intra_op_num_threads = 1  # prevent thread thrashing in concurrent web servers
+        sess_opts.intra_op_num_threads = 1  # prevent thread thrashing
         self._session = ort.InferenceSession(
-            str(model_path), 
+            str(model_path),
             sess_options=sess_opts,
             providers=["CPUExecutionProvider"],
         )
