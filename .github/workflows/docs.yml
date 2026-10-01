@@ -1,0 +1,33 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-deployment
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project and documentation dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e . -r requirements-dev.txt
+
+      - name: Build and deploy documentation
+        run: mkdocs gh-deploy --force
