@@ -1,5 +1,5 @@
 site_name: ERML — Emotion Recognition ML
-site_url: https://sidlakhani.github.io/erml
+site_url: https://erml.sidlakhani.in
 site_description: >-
   A pip-installable Python SDK for facial emotion recognition.
   Drop it into your project, pass it a frame, get back structured emotion data.
