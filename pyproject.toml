@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "erml"
-version = "0.1.0"
+version = "1.0.1"
 description = "Facial emotion recognition SDK — drop-in library for emotion detection from images"
 readme = "README.md"
 license = { file = "LICENSE" }
