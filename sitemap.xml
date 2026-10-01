@@ -1,39 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://sidlakhani.github.io/erml/</loc>
+         <loc>https://erml.sidlakhani.in/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/api/detector/</loc>
+         <loc>https://erml.sidlakhani.in/api/detector/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/api/download/</loc>
+         <loc>https://erml.sidlakhani.in/api/download/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/api/schemas/</loc>
+         <loc>https://erml.sidlakhani.in/api/schemas/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/api/utils/</loc>
+         <loc>https://erml.sidlakhani.in/api/utils/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/getting-started/installation/</loc>
+         <loc>https://erml.sidlakhani.in/getting-started/installation/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/getting-started/quickstart/</loc>
+         <loc>https://erml.sidlakhani.in/getting-started/quickstart/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/guides/contributing/</loc>
+         <loc>https://erml.sidlakhani.in/guides/contributing/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
     <url>
-         <loc>https://sidlakhani.github.io/erml/guides/training/</loc>
+         <loc>https://erml.sidlakhani.in/guides/training/</loc>
          <lastmod>2026-10-01</lastmod>
     </url>
 </urlset>
