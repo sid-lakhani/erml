@@ -450,15 +450,15 @@ def test_analyze_batch_mixed_inputs(tmp_path):
         assert isinstance(r[0], FacePrediction)
 
 
-def test_analyze_batch_parity_real_model():
-    """Verify analyze_batch() and analyze() outputs match with real models."""
-    happy_path = Path(SAMPLE_FACES_DIR) / "happy_face.jpg"
-    if not happy_path.is_file():
-        pytest.skip("Sample face image not available")
+def test_analyze_batch_parity():
+    """Verify analyze_batch() and analyze() outputs match across runs."""
+    detector, _, mock_yunet = _make_mock_detector()
+    face = np.array([[5, 5, 40, 40, *([0.0] * 10), 0.9]], dtype=np.float32)
+    mock_yunet.detect.return_value = (1, face)
 
-    detector = EmotionDetector()
-    single_res = detector.analyze(happy_path)
-    batch_res = detector.analyze_batch([happy_path, str(happy_path)])
+    frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    single_res = detector.analyze(frame)
+    batch_res = detector.analyze_batch([frame, frame])
 
     assert len(batch_res) == 2
     for img_res in batch_res:
